@@ -38,9 +38,9 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@actions/artifact": "^2.3.2",
-    "@actions/core": "^1.2.6",
-    "@actions/github": "^4.0.0",
+    "@actions/artifact": "^6.0.0",
+    "@actions/core": "^2.0.0",
+    "@actions/github": "^6.0.0",
     "@ai-sdk/anthropic": "^3.0.69",
     "@ai-sdk/deepseek": "^2.0.29",
     "@ai-sdk/google": "^3.0.63",

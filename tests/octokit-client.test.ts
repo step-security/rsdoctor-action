@@ -1,17 +1,64 @@
-import { describe, beforeEach, afterAll, it, expect } from 'rstack/test';
+import {
+  describe,
+  beforeAll,
+  beforeEach,
+  afterEach,
+  afterAll,
+  it,
+  expect,
+} from 'rstack/test';
 import { ActionsClient } from '../src/octokit-client';
-const nock = require('nock');
+import { MockAgent, setGlobalDispatcher, getGlobalDispatcher } from 'undici';
+import type { Dispatcher } from 'undici';
+
+const API = 'https://api.github.com';
+const REPO_BASE = '/repos/step-security/rsdoctor-action';
+
+function matchQuery(basePath: string, params: Record<string, string | number>) {
+  return (p: string) => {
+    const [path, qs] = p.split('?');
+    if (path !== basePath) return false;
+    const sp = new URLSearchParams(qs ?? '');
+    return Object.entries(params).every(([k, v]) => sp.get(k) === String(v));
+  };
+}
+
+function jsonReply(
+  pool: ReturnType<MockAgent['get']>,
+  method: string,
+  path: string | ((p: string) => boolean),
+  body: unknown,
+  status = 200,
+) {
+  pool.intercept({ method, path }).reply(status, JSON.stringify(body), {
+    headers: { 'content-type': 'application/json' },
+  });
+}
 
 describe('ActionsClient', () => {
   let client: ActionsClient;
+  let agent: MockAgent;
+  let pool: ReturnType<MockAgent['get']>;
+  let originalDispatcher: Dispatcher;
+
+  beforeAll(() => {
+    originalDispatcher = getGlobalDispatcher();
+  });
 
   beforeEach(() => {
+    agent = new MockAgent();
+    agent.disableNetConnect();
+    setGlobalDispatcher(agent);
+    pool = agent.get(API);
     client = new ActionsClient('test-token');
-    nock.cleanAll();
+  });
+
+  afterEach(async () => {
+    await agent.close();
   });
 
   afterAll(() => {
-    nock.restore();
+    setGlobalDispatcher(originalDispatcher);
   });
 
   describe('getCurrentCommitHash', () => {
@@ -28,18 +75,20 @@ describe('ActionsClient', () => {
     });
 
     it('should use the repository default branch when not configured', async () => {
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action')
-        .reply(200, { default_branch: 'master' });
+      jsonReply(pool, 'GET', REPO_BASE, { default_branch: 'master' });
 
       const branch = await client.resolveTargetBranch('', '');
       expect(branch).toBe('master');
     });
 
     it('should fall back to main when the repository query fails', async () => {
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action')
-        .reply(403, { message: 'Resource not accessible by integration' });
+      jsonReply(
+        pool,
+        'GET',
+        REPO_BASE,
+        { message: 'Resource not accessible by integration' },
+        403,
+      );
 
       const branch = await client.resolveTargetBranch('', '');
       expect(branch).toBe('main');
@@ -49,28 +98,35 @@ describe('ActionsClient', () => {
   describe('resolveBaselineCommit', () => {
     it('should get commit from GitHub API', async () => {
       const mockCommitSha = 'abcdef1234abcdef1234abcdef1234abcdef1234';
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action/branches/main')
-        .reply(200, { commit: { sha: mockCommitSha } });
 
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action/actions/runs')
-        .query({
+      jsonReply(pool, 'GET', `${REPO_BASE}/branches/main`, {
+        commit: { sha: mockCommitSha },
+      });
+      jsonReply(
+        pool,
+        'GET',
+        matchQuery(`${REPO_BASE}/actions/runs`, {
           branch: 'main',
           head_sha: mockCommitSha,
           status: 'completed',
           per_page: 30,
-        })
-        .reply(200, { workflow_runs: [] });
-
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action/actions/runs')
-        .query({ branch: 'main', status: 'completed', per_page: 100 })
-        .reply(200, { workflow_runs: [] });
-
-      nock('https://api.github.com')
-        .get(`/repos/step-security/rsdoctor-action/commits/${mockCommitSha}`)
-        .reply(200, { sha: mockCommitSha, parents: [] });
+        }),
+        { workflow_runs: [] },
+      );
+      jsonReply(
+        pool,
+        'GET',
+        matchQuery(`${REPO_BASE}/actions/runs`, {
+          branch: 'main',
+          status: 'completed',
+          per_page: 100,
+        }),
+        { workflow_runs: [] },
+      );
+      jsonReply(pool, 'GET', `${REPO_BASE}/commits/${mockCommitSha}`, {
+        sha: mockCommitSha,
+        parents: [],
+      });
 
       const result = await client.resolveBaselineCommit('', 'main');
       expect(result).toHaveProperty('commitHash');
@@ -83,38 +139,44 @@ describe('ActionsClient', () => {
       const mockCommitSha = 'abcdef1234abcdef1234abcdef1234abcdef1234';
       const mockParentSha = '1234567890abcdef1234567890abcdef12345678';
 
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action/branches/main')
-        .reply(200, { commit: { sha: mockCommitSha } });
-
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action/actions/runs')
-        .query({
+      jsonReply(pool, 'GET', `${REPO_BASE}/branches/main`, {
+        commit: { sha: mockCommitSha },
+      });
+      jsonReply(
+        pool,
+        'GET',
+        matchQuery(`${REPO_BASE}/actions/runs`, {
           branch: 'main',
           head_sha: mockCommitSha,
           status: 'completed',
           per_page: 30,
-        })
-        .reply(200, { workflow_runs: [] });
-
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action/actions/runs')
-        .query({ branch: 'main', status: 'completed', per_page: 100 })
-        .reply(200, { workflow_runs: [] });
-
-      nock('https://api.github.com')
-        .get(`/repos/step-security/rsdoctor-action/commits/${mockCommitSha}`)
-        .reply(200, { sha: mockCommitSha, parents: [{ sha: mockParentSha }] });
-
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action/actions/runs')
-        .query({
+        }),
+        { workflow_runs: [] },
+      );
+      jsonReply(
+        pool,
+        'GET',
+        matchQuery(`${REPO_BASE}/actions/runs`, {
+          branch: 'main',
+          status: 'completed',
+          per_page: 100,
+        }),
+        { workflow_runs: [] },
+      );
+      jsonReply(pool, 'GET', `${REPO_BASE}/commits/${mockCommitSha}`, {
+        sha: mockCommitSha,
+        parents: [{ sha: mockParentSha }],
+      });
+      jsonReply(
+        pool,
+        'GET',
+        matchQuery(`${REPO_BASE}/actions/runs`, {
           branch: 'main',
           head_sha: mockParentSha,
           status: 'completed',
           per_page: 30,
-        })
-        .reply(200, {
+        }),
+        {
           workflow_runs: [
             {
               id: 123,
@@ -124,11 +186,11 @@ describe('ActionsClient', () => {
               conclusion: 'success',
             },
           ],
-        });
-
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action/actions/runs/123/artifacts')
-        .reply(200, { artifacts: [{ id: 1, name: 'test-artifact' }] });
+        },
+      );
+      jsonReply(pool, 'GET', `${REPO_BASE}/actions/runs/123/artifacts`, {
+        artifacts: [{ id: 1, name: 'test-artifact' }],
+      });
 
       const result = await client.resolveBaselineCommit('', 'main');
       expect(result).toHaveProperty('commitHash');
@@ -140,9 +202,13 @@ describe('ActionsClient', () => {
     });
 
     it('should fail when the target branch cannot be queried', async () => {
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action/branches/main')
-        .reply(404, { message: 'Branch not found' });
+      jsonReply(
+        pool,
+        'GET',
+        `${REPO_BASE}/branches/main`,
+        { message: 'Branch not found' },
+        404,
+      );
 
       await expect(client.resolveBaselineCommit('', 'main')).rejects.toThrow(
         'Failed to get target branch (main) commit: Branch not found',
@@ -152,19 +218,19 @@ describe('ActionsClient', () => {
     it('should use the full SHA when querying workflow runs for baseline artifacts', async () => {
       const mockCommitSha = 'fedcba9876fedcba9876fedcba9876fedcba9876';
 
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action/branches/main')
-        .reply(200, { commit: { sha: mockCommitSha } });
-
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action/actions/runs')
-        .query({
+      jsonReply(pool, 'GET', `${REPO_BASE}/branches/main`, {
+        commit: { sha: mockCommitSha },
+      });
+      jsonReply(
+        pool,
+        'GET',
+        matchQuery(`${REPO_BASE}/actions/runs`, {
           branch: 'main',
           head_sha: mockCommitSha,
           status: 'completed',
           per_page: 30,
-        })
-        .reply(200, {
+        }),
+        {
           workflow_runs: [
             {
               id: 456,
@@ -174,11 +240,11 @@ describe('ActionsClient', () => {
               conclusion: 'success',
             },
           ],
-        });
-
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action/actions/runs/456/artifacts')
-        .reply(200, { artifacts: [{ id: 1, name: 'rsdoctor-artifact' }] });
+        },
+      );
+      jsonReply(pool, 'GET', `${REPO_BASE}/actions/runs/456/artifacts`, {
+        artifacts: [{ id: 1, name: 'rsdoctor-artifact' }],
+      });
 
       const result = await client.resolveBaselineCommit('', 'main');
       expect(result.commitHash).toBe(mockCommitSha);
@@ -190,19 +256,21 @@ describe('ActionsClient', () => {
     it('should filter the exact workflow run lookup by branch', async () => {
       const fullSha = 'abcdef1234abcdef1234abcdef1234abcdef1234';
 
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action/actions/runs')
-        .query({
+      jsonReply(
+        pool,
+        'GET',
+        matchQuery(`${REPO_BASE}/actions/runs`, {
           branch: 'main',
           head_sha: fullSha,
           status: 'completed',
           per_page: 10,
-        })
-        .reply(200, {
+        }),
+        {
           workflow_runs: [
             { id: 456, head_sha: fullSha, conclusion: 'success' },
           ],
-        });
+        },
+      );
 
       const run = await client.findRunForCommit(fullSha, 'completed', 'main');
       expect(run.id).toBe(456);
@@ -213,24 +281,31 @@ describe('ActionsClient', () => {
     it('should filter fallback workflow run lookup by branch', async () => {
       const fullSha = 'abcdef1234abcdef1234abcdef1234abcdef1234';
 
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action/actions/runs')
-        .query({
+      jsonReply(
+        pool,
+        'GET',
+        matchQuery(`${REPO_BASE}/actions/runs`, {
           branch: 'main',
           head_sha: fullSha,
           status: 'completed',
           per_page: 30,
-        })
-        .reply(200, { workflow_runs: [] });
-
-      nock('https://api.github.com')
-        .get('/repos/step-security/rsdoctor-action/actions/runs')
-        .query({ branch: 'main', status: 'completed', per_page: 100 })
-        .reply(200, {
+        }),
+        { workflow_runs: [] },
+      );
+      jsonReply(
+        pool,
+        'GET',
+        matchQuery(`${REPO_BASE}/actions/runs`, {
+          branch: 'main',
+          status: 'completed',
+          per_page: 100,
+        }),
+        {
           workflow_runs: [
             { id: 789, head_sha: fullSha, conclusion: 'success' },
           ],
-        });
+        },
+      );
 
       const runs = await client.findAllRunsForCommit(
         fullSha,
