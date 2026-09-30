@@ -47,7 +47,7 @@
     "@ai-sdk/openai": "^3.0.52",
     "@playwright/test": "^1.42.1",
     "@rsdoctor/cli": "1.5.12",
-    "@rsdoctor/client": "1.5.12",
+    "@rsdoctor/client": "1.6.4",
     "@rstest/coverage-istanbul": "~0.11.11",
     "@types/node": "^24.5.2",
     "@types/node-fetch": "^2.6.11",
