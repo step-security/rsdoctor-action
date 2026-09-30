@@ -1,0 +1,51 @@
+[[IgnoredVulns]]
+id = "GHSA-v9p9-hfj2-hcw8"
+reason = "WebSocket DoS via invalid server_max_window_bits. Not exploitable: this action makes no WebSocket connections."
+
+[[IgnoredVulns]]
+id = "GHSA-vrm6-8vpv-qv8q"
+reason = "WebSocket memory exhaustion via permessage-deflate decompression. Not exploitable: this action makes no WebSocket connections."
+
+[[IgnoredVulns]]
+id = "GHSA-vxpw-j846-p89q"
+reason = "WebSocket DoS via unbounded fragment count. Not exploitable: this action makes no WebSocket connections."
+
+[[IgnoredVulns]]
+id = "GHSA-8xcm-r25x-g524"
+reason = "Response desynchronization via retry interceptor. Not exploitable: the action does not use undici's interceptors.retry()."
+
+[[IgnoredVulns]]
+id = "GHSA-r53p-7pc4-xj5r"
+reason = "Response splitting via retry interceptor. Not exploitable: the action does not use undici's interceptors.retry()."
+
+[[IgnoredVulns]]
+id = "GHSA-2mjp-6q6p-2qxm"
+reason = "HTTP request smuggling via duplicate Content-Length headers. Not exploitable: octokit controls all request headers; no user-supplied content reaches undici's header construction."
+
+[[IgnoredVulns]]
+id = "GHSA-4992-7rv2-5pvq"
+reason = "CRLF injection via upgrade option. Not exploitable: the action does not pass user-controlled input to the undici upgrade option."
+
+[[IgnoredVulns]]
+id = "GHSA-m8rv-5g2x-5cg5"
+reason = "CRLF injection via blob body type property. Not exploitable: the action does not pass blob-like bodies with user-controlled type to undici."
+
+[[IgnoredVulns]]
+id = "GHSA-35p6-xmwp-9g52"
+reason = "Response queue poisoning via attacker-controlled upstream. Not exploitable: all upstream connections are to trusted endpoints (api.github.com, AI provider APIs)."
+
+[[IgnoredVulns]]
+id = "GHSA-g9mf-h72j-4rw9"
+reason = "DoS via chained Content-Encoding from attacker-controlled server. Not exploitable: all upstream connections are to trusted endpoints (api.github.com, AI provider APIs)."
+
+[[IgnoredVulns]]
+id = "GHSA-p88m-4jfj-68fv"
+reason = "Header injection via Set-Cookie percent-decoding. Not exploitable: Set-Cookie headers are received only from trusted upstream servers (api.github.com)."
+
+[[IgnoredVulns]]
+id = "GHSA-g8m3-5g58-fq7m"
+reason = "Set-Cookie SameSite attribute downgrade via permissive parsing. Not exploitable: Set-Cookie headers come only from trusted upstream servers; the action runs in a non-browser context where SameSite enforcement is irrelevant."
+
+[[IgnoredVulns]]
+id = "GHSA-v3r7-h72x-cjcm"
+reason = "Cookie attribute injection via unsanitized domain/path in setCookie. Not exploitable: the action does not call setCookie with user-controlled domain or path values."
