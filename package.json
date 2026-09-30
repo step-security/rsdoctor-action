@@ -49,7 +49,7 @@
     "@rsdoctor/cli": "1.5.12",
     "@rsdoctor/client": "1.5.12",
     "@rstest/coverage-istanbul": "~0.11.11",
-    "@types/node": "^24.5.2",
+    "@types/node": "^26.6.3",
     "@types/node-fetch": "^2.6.11",
     "@types/yauzl": "^2.10.3",
     "ai": "^6.0.159",
