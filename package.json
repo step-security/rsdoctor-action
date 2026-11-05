@@ -40,7 +40,7 @@
   "devDependencies": {
     "@actions/artifact": "^6.0.0",
     "@actions/core": "^2.0.0",
-    "@actions/github": "^6.0.0",
+    "@actions/github": "^9.1.1",
     "@ai-sdk/anthropic": "^3.0.69",
     "@ai-sdk/deepseek": "^2.0.29",
     "@ai-sdk/google": "^3.0.63",
