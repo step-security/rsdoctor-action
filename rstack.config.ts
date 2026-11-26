@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { define } from 'rstack';
 
 const minifyOptions = {
@@ -58,6 +59,14 @@ define.lib({
             alias: { bufferutil: false, 'utf-8-validate': false },
           },
           optimization: { splitChunks: splitChunksConfig },
+          module: {
+            rules: [
+              {
+                test: /[\\/]@rsdoctor[\\/]core[\\/]dist[\\/]r\.js$/,
+                use: [resolve('scripts/bundle-caniuse-lite.cjs')],
+              },
+            ],
+          },
         },
       },
     },
