@@ -12,7 +12,7 @@ Report Rsdoctor bundle metrics on pull requests and workflow summaries, with opt
 - name: Bundle Analysis
   uses: step-security/rsdoctor-action@main
   with:
-    file_path: 'dist/.rsdoctor/rsdoctor-data.json'
+    file_path: 'dist/rsdoctor-data.json'
 ```
 
 ### Full workflow example
@@ -46,7 +46,7 @@ jobs:
         env:
           AI_TOKEN: ${{ secrets.AI_TOKEN }}
         with:
-          file_path: 'dist/.rsdoctor/rsdoctor-data.json'
+          file_path: 'dist/rsdoctor-data.json'
           target_branch: 'main'
           ai_model: 'claude-3-5-haiku-latest'
 ```
@@ -84,7 +84,7 @@ Install the Rsdoctor plugin for your build tool, enable Brief mode, and emit JSO
 
 ```typescript
 // rsbuild.config.ts
-import { RsdoctorRspackPlugin } from '@rsdoctor/rspack-plugin';
+import { RsdoctorRspackPlugin } from '@rsdoctor/core';
 
 export default defineConfig({
   tools: {
@@ -103,12 +103,15 @@ export default defineConfig({
 });
 ```
 
+Requires `@rsdoctor/core@2` with Rspack 2 or a compatible Rsbuild version.
+
 Supported build tools:
 
-| Tool             | Plugin                     |
-| ---------------- | -------------------------- |
-| Rsbuild / Rspack | `@rsdoctor/rspack-plugin`  |
-| Webpack          | `@rsdoctor/webpack-plugin` |
+| Tool             | Plugin / Package   |
+| ---------------- | ------------------ |
+| Rsbuild / Rspack | `@rsdoctor/core@2` |
+
+> **Note:** Rsdoctor 2 does not support webpack. For webpack projects, continue using Rsdoctor 1.x.
 
 ## Troubleshooting
 
